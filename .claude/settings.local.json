@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(find:*)",
+      "Bash(rm:*)",
+      "Bash(ls:*)",
+      "Bash(for:*)",
+      "Bash(do echo \"✅ $file exists\")",
+      "Bash(done)",
+      "Bash(mv:*)"
+    ],
+    "deny": []
+  }
+}

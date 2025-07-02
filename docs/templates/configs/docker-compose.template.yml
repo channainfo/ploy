@@ -1,0 +1,110 @@
+# Docker Compose Template for Blockchain Loyalty Platform
+# Copy this file and customize for your environment
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: loyalty-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loyalty_platform}
+      POSTGRES_USER: ${POSTGRES_USER:-loyalty_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loyalty_pass}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./tools/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - loyalty_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-loyalty_user} -d ${POSTGRES_DB:-loyalty_platform}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: loyalty-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - loyalty_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+
+  # Database Admin Interface
+  adminer:
+    image: adminer
+    container_name: loyalty-adminer
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    networks:
+      - loyalty_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  # API Backend (uncomment when ready)
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: packages/backend/Dockerfile
+  #   container_name: loyalty-api
+  #   ports:
+  #     - "${API_PORT:-3000}:3000"
+  #   environment:
+  #     - NODE_ENV=${NODE_ENV:-development}
+  #     - DATABASE_URL=postgresql://${POSTGRES_USER:-loyalty_user}:${POSTGRES_PASSWORD:-loyalty_pass}@postgres:5432/${POSTGRES_DB:-loyalty_platform}
+  #     - REDIS_URL=redis://redis:6379
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - loyalty_network
+  #   restart: unless-stopped
+
+  # Admin Dashboard (uncomment when ready)
+  # admin-dashboard:
+  #   build:
+  #     context: .
+  #     dockerfile: apps/admin-dashboard/Dockerfile
+  #   container_name: loyalty-admin
+  #   ports:
+  #     - "${ADMIN_PORT:-3001}:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_URL=http://api:3000
+  #   depends_on:
+  #     - api
+  #   networks:
+  #     - loyalty_network
+  #   restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  loyalty_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
